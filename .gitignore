@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+__pypackages__/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Environment variables
+B2C/.env
+.env.*
+!.env.example
+
+# Migrations cache
+*/migrations/__pycache__/
+
+# PyCharm
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# Ruff
+.ruff_cache/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Docker / local volumes
+docker-compose.override.yml
+data/
+postgres_data/
+redis_data/
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/

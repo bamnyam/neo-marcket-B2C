@@ -1,0 +1,31 @@
+services:
+  b2c-service:
+    build:
+      context: ./B2C
+      dockerfile: Dockerfile
+    container_name: neo-market-b2c-service
+    command: uv run python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./B2C/.env
+    environment:
+      POSTGRES_HOST: b2c-db
+      POSTGRES_PORT: 5432
+    volumes:
+      - ./B2C:/usr/src/app
+    depends_on:
+      - b2c-db
+
+  b2c-db:
+    image: postgres:16
+    container_name: neo-market-b2c-db
+    env_file:
+      - ./B2C/.env
+    ports:
+      - "5433:5432"
+    volumes:
+      - b2c_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  b2c_postgres_data:

@@ -1,0 +1,29 @@
+[project]
+name = "b2c"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "django>=5.2.15",
+    "django-filter>=25.2",
+    "djangorestframework>=3.17.1",
+    "drf-spectacular>=0.29.0",
+    "gunicorn>=26.0.0",
+    "psycopg[binary]>=3.3.4",
+    "python-dotenv>=1.2.2",
+    "uvicorn>=0.49.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "pytest>=9.0.3",
+    "pytest-django>=4.12.0",
+    "ruff>=0.15.16",
+    "testcontainers[postgres]>=4.13.3",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.test_settings"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
