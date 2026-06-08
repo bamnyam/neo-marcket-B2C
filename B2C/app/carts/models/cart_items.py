@@ -5,14 +5,6 @@ from django.db import models
 from django.db.models import Q
 
 
-class UnavailableReason(models.TextChoices):
-    OUT_OF_STOCK = "OUT_OF_STOCK", "Out of stock"
-    PRODUCT_BLOCKED = "PRODUCT_BLOCKED", "Product blocked"
-    PRODUCT_DELETED = "PRODUCT_DELETED", "Product deleted"
-    PRODUCT_DELISTED = "PRODUCT_DELISTED", "Product delisted"
-    ON_MODERATION = "ON_MODERATION", "On moderation"
-
-
 class CartItem(models.Model):
     uuid = models.UUIDField(
         default=uuid.uuid4,
@@ -36,17 +28,6 @@ class CartItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     unit_price_at_add = models.PositiveBigIntegerField(
         null=True,
-        blank=True,
-    )
-    available = models.BooleanField(default=True)
-    unavailable_reason = models.CharField(
-        max_length=50,
-        choices=UnavailableReason.choices,
-        null=True,
-        blank=True,
-    )
-    unavailable_message = models.CharField(
-        max_length=255,
         blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)

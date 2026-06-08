@@ -1,6 +1,5 @@
-from app.carts.models.cart_items import CartItem, UnavailableReason
+from app.carts.models.cart_items import CartItem
 
 __all__ = [
     "CartItem",
-    "UnavailableReason",
 ]

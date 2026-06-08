@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     "app.buyers.apps.BuyersConfig",
     "app.carts.apps.CartsConfig",
     "app.content.apps.ContentConfig",
@@ -137,3 +138,12 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "buyers.Buyer"
+
+B2B_URL = os.getenv("B2B_URL", "http://b2b:8000")
+B2C_TO_B2B_KEY = os.getenv("B2C_TO_B2B_KEY", "test-b2b-key")
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "app.common.authentication.BuyerJWTAuthentication",
+    ],
+}
