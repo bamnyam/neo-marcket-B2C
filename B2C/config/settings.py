@@ -41,6 +41,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "app.buyers.apps.BuyersConfig",
+    "app.carts.apps.CartsConfig",
+    "app.content.apps.ContentConfig",
+    "app.favorites.apps.FavoritesConfig",
+    "app.integrations.apps.IntegrationsConfig",
+    "app.notifications.apps.NotificationsConfig",
+    "app.orders.apps.OrdersConfig",
 ]
 
 MIDDLEWARE = [
@@ -128,3 +135,5 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "buyers.Buyer"
