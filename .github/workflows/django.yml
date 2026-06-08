@@ -24,7 +24,7 @@ jobs:
 
       - name: Create env
         run: |
-          cat > B2B/.env <<EOF
+          cat > B2C/.env <<EOF
           DEBUG=True
           SECRET_KEY=${{ secrets.SECRET_KEY }}
           POSTGRES_DB=b2b_db
