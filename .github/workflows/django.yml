@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Create env
+        run: |
+          cat > B2B/.env <<EOF
+          DEBUG=True
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          POSTGRES_DB=b2b_db
+          POSTGRES_USER=b2b_user
+          POSTGRES_PASSWORD=b2b_password
+          POSTGRES_HOST=b2b-db
+          POSTGRES_PORT=5432
+          EOF
+
+      - name: Build
+        run: make build
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
