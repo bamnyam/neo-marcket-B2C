@@ -36,7 +36,7 @@ class B2BClient:
 
 
 def normalize_skus(payload):
-    products = payload.get("items", payload if isinstance(payload, list) else [])
+    products = payload if isinstance(payload, list) else payload.get("items", [])
     result = {}
 
     for product in products:
@@ -59,17 +59,21 @@ def normalize_skus(payload):
                 "sku_code": sku.get("sku_code") or sku.get("article") or "",
                 "price": int(sku.get("price") or 0),
                 "discount": int(sku.get("discount") or 0),
-                "available_quantity": int(
-                    sku.get("available_quantity")
-                    if sku.get("available_quantity") is not None
-                    else sku.get("active_quantity") or 0
-                ),
+                "available_quantity": _quantity(sku),
                 "product_status": product.get("status") or "MODERATED",
                 "product_deleted": bool(product.get("deleted", False)),
                 "image": _first_image(sku) or _first_image(product),
             }
 
     return result
+
+
+def _quantity(sku):
+    for field in ("available_quantity", "active_quantity", "activeQuantity"):
+        if sku.get(field) is not None:
+            return int(sku[field])
+
+    return 0
 
 
 def _first_image(source):
