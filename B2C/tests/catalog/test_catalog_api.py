@@ -1,4 +1,5 @@
 import json
+import urllib.error
 import urllib.request
 
 import pytest
@@ -135,6 +136,140 @@ def test_b2b_unavailable_returns_502(api_client, monkeypatch):
     }
 
 
+def test_product_card_returns_full_data_with_skus(api_client, monkeypatch):
+    seen = {}
+
+    def fake_urlopen(request, timeout):
+        seen["url"] = request.full_url
+        return JsonResponse(product_card_payload())
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    response = api_client.get(
+        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "id": "770e8400-e29b-41d4-a716-446655440002",
+        "slug": "iphone-15-pro-max",
+        "title": "iPhone 15 Pro Max",
+        "description": "Флагманский смартфон Apple 2024 года с чипом A17 Pro",
+        "images": [
+            {
+                "url": "https://cdn.neomarket.ru/images/iphone15-front.jpg",
+                "order": 0,
+            },
+            {
+                "url": "https://cdn.neomarket.ru/images/iphone15-back.jpg",
+                "order": 1,
+            },
+        ],
+        "status": "MODERATED",
+        "characteristics": [
+            {"name": "Бренд", "value": "Apple"},
+            {"name": "Страна-производитель", "value": "Китай"},
+        ],
+        "skus": [
+            {
+                "id": "660e8400-e29b-41d4-a716-446655440001",
+                "name": "256GB Black",
+                "price": 12999000,
+                "quantity": 10,
+                "characteristics": [
+                    {"name": "Цвет", "value": "Чёрный"},
+                    {"name": "Объём памяти", "value": "256 ГБ"},
+                ],
+                "images": [
+                    {
+                        "url": "https://cdn.neomarket.ru/images/iphone15-black-256.jpg",
+                        "order": 0,
+                    }
+                ],
+            },
+            {
+                "id": "660e8400-e29b-41d4-a716-446655440002",
+                "name": "256GB White",
+                "price": 12999000,
+                "quantity": 3,
+                "characteristics": [
+                    {"name": "Цвет", "value": "Белый"},
+                    {"name": "Объём памяти", "value": "256 ГБ"},
+                ],
+                "images": [
+                    {
+                        "url": "https://cdn.neomarket.ru/images/iphone15-white-256.jpg",
+                        "order": 0,
+                    }
+                ],
+            },
+        ],
+    }
+    assert seen["url"].endswith(
+        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+    )
+
+
+def test_cost_price_absent_in_response(api_client, monkeypatch):
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda request, timeout: JsonResponse(product_card_payload()),
+    )
+
+    response = api_client.get(
+        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+    )
+
+    sku = response.json()["skus"][0]
+    assert "cost_price" not in sku
+    assert "reserved_quantity" not in sku
+    assert "discount" not in sku
+    assert "active_quantity" not in sku
+    assert "in_stock" not in sku
+    assert "image" not in sku
+
+
+def test_blocked_product_returns_404(api_client, monkeypatch):
+    def fake_urlopen(request, timeout):
+        raise urllib.error.HTTPError(
+            request.full_url,
+            404,
+            "Not Found",
+            hdrs=None,
+            fp=ErrorBody({"code": "NOT_FOUND", "message": "Product not found"}),
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    response = api_client.get(
+        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"code": "NOT_FOUND", "message": "Product not found"}
+
+
+def test_sku_without_stock_is_shown_as_unavailable(api_client, monkeypatch):
+    payload = product_card_payload()
+    payload["skus"][1]["active_quantity"] = 0
+
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda request, timeout: JsonResponse(payload),
+    )
+
+    response = api_client.get(
+        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["skus"][1]["quantity"] == 0
+    assert "in_stock" not in response.json()["skus"][1]
+
+
 def test_empty_category_returns_empty_page(api_client, monkeypatch):
     monkeypatch.setattr(
         B2BCatalogClient,
@@ -179,3 +314,68 @@ class JsonResponse:
 
     def read(self):
         return json.dumps(self.payload).encode()
+
+
+class ErrorBody:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def read(self):
+        return json.dumps(self.payload).encode()
+
+    def close(self):
+        pass
+
+
+def product_card_payload():
+    return {
+        "id": "770e8400-e29b-41d4-a716-446655440002",
+        "slug": "iphone-15-pro-max",
+        "title": "iPhone 15 Pro Max",
+        "description": "Флагманский смартфон Apple 2024 года с чипом A17 Pro",
+        "images": [
+            {
+                "url": "https://cdn.neomarket.ru/images/iphone15-front.jpg",
+                "ordering": 0,
+            },
+            {
+                "url": "https://cdn.neomarket.ru/images/iphone15-back.jpg",
+                "ordering": 1,
+            },
+        ],
+        "status": "MODERATED",
+        "characteristics": [
+            {"name": "Бренд", "value": "Apple"},
+            {"name": "Страна-производитель", "value": "Китай"},
+        ],
+        "skus": [
+            {
+                "id": "660e8400-e29b-41d4-a716-446655440001",
+                "name": "256GB Black",
+                "price": 12999000,
+                "discount": 0,
+                "image": "https://cdn.neomarket.ru/images/iphone15-black-256.jpg",
+                "active_quantity": 10,
+                "cost_price": 9000000,
+                "reserved_quantity": 2,
+                "characteristics": [
+                    {"name": "Цвет", "value": "Чёрный"},
+                    {"name": "Объём памяти", "value": "256 ГБ"},
+                ],
+            },
+            {
+                "id": "660e8400-e29b-41d4-a716-446655440002",
+                "name": "256GB White",
+                "price": 12999000,
+                "discount": 500000,
+                "image": "https://cdn.neomarket.ru/images/iphone15-white-256.jpg",
+                "active_quantity": 3,
+                "cost_price": 9100000,
+                "reserved_quantity": 1,
+                "characteristics": [
+                    {"name": "Цвет", "value": "Белый"},
+                    {"name": "Объём памяти", "value": "256 ГБ"},
+                ],
+            },
+        ],
+    }

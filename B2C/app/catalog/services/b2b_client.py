@@ -36,6 +36,9 @@ class B2BCatalogClient:
     def get_products(self, query_params):
         return self._get("/api/v1/products", query_params)
 
+    def get_product(self, product_id):
+        return self._get(f"/api/v1/products/{product_id}")
+
     def get_category_filters(self, category_id):
         return self._get(f"/api/v1/categories/{category_id}/filters")
 
