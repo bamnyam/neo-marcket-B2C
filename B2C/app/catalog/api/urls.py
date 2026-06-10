@@ -8,7 +8,11 @@ from app.catalog.api.controller import (
 )
 
 urlpatterns = [
-    path("products/<str:product_id>", ProductCardController.as_view(), name="product-card"),
+    path(
+        "catalog/products/<str:product_id>",
+        ProductCardController.as_view(),
+        name="product-card",
+    ),
     path("catalog/products", ProductsController.as_view(), name="catalog-products"),
     path(
         "categories/<str:category_id>/filters",
