@@ -11,25 +11,26 @@ from app.catalog.services import (
 
 
 INVALID_SORT_MESSAGE = (
-    "Invalid sort parameter. Allowed: "
-    "rating, popularity, price_asc, price_desc, date_desc, discount_desc"
+    "Invalid sort parameter. Allowed: price_asc, price_desc, popularity, new"
 )
 
 PRODUCT_CARD_FIELDS = (
     "id",
     "slug",
-    "title",
+    "name",
     "description",
     "images",
     "status",
     "characteristics",
+    "min_price",
+    "has_stock",
 )
 
 SKU_CARD_FIELDS = (
     "id",
     "name",
     "price",
-    "quantity",
+    "available_quantity",
     "characteristics",
     "images",
 )
@@ -66,7 +67,7 @@ class CatalogProxyMixin:
 
 class ProductsController(CatalogProxyMixin, APIView):
     def get(self, request):
-        sort = request.query_params.get("sort", "rating")
+        sort = request.query_params.get("sort", "popularity")
 
         if sort not in ALLOWED_SORTS:
             return self._invalid_request(INVALID_SORT_MESSAGE)
@@ -76,7 +77,26 @@ class ProductsController(CatalogProxyMixin, APIView):
         query_params.setdefault("offset", "0")
         query_params.setdefault("sort", sort)
 
-        return self._proxy_response("get_products", query_params)
+        try:
+            payload = self.service_class().get_products(query_params)
+        except B2BUnavailableError:
+            return Response(
+                {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": "Catalog temporarily unavailable",
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        except B2BUpstreamError as exc:
+            return Response(exc.payload, status=exc.status_code)
+
+        if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+            payload = {
+                **payload,
+                "items": [_sanitize_product_summary(item) for item in payload["items"]],
+            }
+
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 class ProductCardController(CatalogProxyMixin, APIView):
@@ -111,20 +131,47 @@ class CatalogFacetsController(CatalogProxyMixin, APIView):
 
 
 def sanitize_product_card(product):
+    normalized_product = dict(product)
+    normalized_product["name"] = product.get("name") or product.get("title")
+
+    skus = [_sanitize_sku(sku) for sku in product.get("skus", [])]
+    normalized_product["min_price"] = _get_min_price(skus)
+    normalized_product["has_stock"] = any(
+        sku.get("available_quantity", 0) > 0 for sku in skus
+    )
+
     sanitized = {
-        field: product.get(field) for field in PRODUCT_CARD_FIELDS if field in product
+        field: normalized_product.get(field)
+        for field in PRODUCT_CARD_FIELDS
+        if field in normalized_product
     }
     if "images" in sanitized:
         sanitized["images"] = [_sanitize_image(image) for image in sanitized["images"]]
-    sanitized["skus"] = [_sanitize_sku(sku) for sku in product.get("skus", [])]
+    sanitized["skus"] = skus
     return sanitized
+
+
+def _sanitize_product_summary(product):
+    normalized_product = dict(product)
+    normalized_product["name"] = product.get("name") or product.get("title")
+
+    if "min_price" not in normalized_product:
+        normalized_product["min_price"] = _get_summary_min_price(normalized_product)
+
+    if "has_stock" not in normalized_product:
+        normalized_product["has_stock"] = _get_summary_has_stock(normalized_product)
+
+    normalized_product.pop("title", None)
+    normalized_product.pop("price", None)
+    normalized_product.pop("in_stock", None)
+    return normalized_product
 
 
 def _sanitize_sku(sku):
     normalized_sku = dict(sku)
 
-    if "quantity" not in normalized_sku:
-        normalized_sku["quantity"] = _get_quantity(normalized_sku)
+    if "available_quantity" not in normalized_sku:
+        normalized_sku["available_quantity"] = _get_quantity(normalized_sku)
 
     if "images" in normalized_sku:
         normalized_sku["images"] = [
@@ -141,13 +188,45 @@ def _sanitize_sku(sku):
 
 
 def _get_quantity(sku):
+    if "available_quantity" in sku:
+        return sku["available_quantity"]
+
     if "active_quantity" in sku:
         return sku["active_quantity"]
 
     if "activeQuantity" in sku:
         return sku["activeQuantity"]
 
+    if "quantity" in sku:
+        return sku["quantity"]
+
     return 0
+
+
+def _get_min_price(skus):
+    prices = [sku["price"] for sku in skus if sku.get("price") is not None]
+    if not prices:
+        return None
+
+    return min(prices)
+
+
+def _get_summary_min_price(product):
+    if product.get("price") is not None:
+        return product["price"]
+
+    return _get_min_price([_sanitize_sku(sku) for sku in product.get("skus", [])])
+
+
+def _get_summary_has_stock(product):
+    if product.get("in_stock") is not None:
+        return product["in_stock"]
+
+    skus = [_sanitize_sku(sku) for sku in product.get("skus", [])]
+    if skus:
+        return any(sku.get("available_quantity", 0) > 0 for sku in skus)
+
+    return False
 
 
 def _sanitize_image(image):

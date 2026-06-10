@@ -7,12 +7,10 @@ from django.conf import settings
 
 
 ALLOWED_SORTS = (
-    "rating",
-    "popularity",
     "price_asc",
     "price_desc",
-    "date_desc",
-    "discount_desc",
+    "popularity",
+    "new",
 )
 
 

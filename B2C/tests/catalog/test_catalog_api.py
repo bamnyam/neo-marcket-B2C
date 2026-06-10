@@ -41,7 +41,7 @@ def test_catalog_returns_filtered_sorted_products(api_client, monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
     response = api_client.get(
-        "/api/v1/products",
+        "/api/v1/catalog/products",
         {
             "category_id": "123e4567-e89b-12d3-a456-426614174001",
             "filters[brand]": "Apple",
@@ -52,7 +52,12 @@ def test_catalog_returns_filtered_sorted_products(api_client, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.data["items"][0]["title"] == "iPhone 15 Pro Max"
+    assert response.data["items"][0]["name"] == "iPhone 15 Pro Max"
+    assert response.data["items"][0]["min_price"] == 12999000
+    assert response.data["items"][0]["has_stock"] is True
+    assert "title" not in response.data["items"][0]
+    assert "price" not in response.data["items"][0]
+    assert "in_stock" not in response.data["items"][0]
     assert response.data["total_count"] == 1
     assert "category_id=123e4567-e89b-12d3-a456-426614174001" in seen["url"]
     assert "filters%5Bbrand%5D=Apple" in seen["url"]
@@ -109,14 +114,13 @@ def test_invalid_sort_returns_400(api_client, monkeypatch):
 
     monkeypatch.setattr(urllib.request, "urlopen", fail_if_called)
 
-    response = api_client.get("/api/v1/products", {"sort": "price_up"})
+    response = api_client.get("/api/v1/catalog/products", {"sort": "price_up"})
 
     assert response.status_code == 400
     assert response.data == {
         "code": "INVALID_REQUEST",
         "message": (
-            "Invalid sort parameter. Allowed: "
-            "rating, popularity, price_asc, price_desc, date_desc, discount_desc"
+            "Invalid sort parameter. Allowed: price_asc, price_desc, popularity, new"
         ),
     }
 
@@ -127,7 +131,7 @@ def test_b2b_unavailable_returns_502(api_client, monkeypatch):
 
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
-    response = api_client.get("/api/v1/products")
+    response = api_client.get("/api/v1/catalog/products")
 
     assert response.status_code == 502
     assert response.data == {
@@ -154,7 +158,7 @@ def test_product_card_returns_full_data_with_skus(api_client, monkeypatch):
     assert payload == {
         "id": "770e8400-e29b-41d4-a716-446655440002",
         "slug": "iphone-15-pro-max",
-        "title": "iPhone 15 Pro Max",
+        "name": "iPhone 15 Pro Max",
         "description": "Флагманский смартфон Apple 2024 года с чипом A17 Pro",
         "images": [
             {
@@ -171,12 +175,14 @@ def test_product_card_returns_full_data_with_skus(api_client, monkeypatch):
             {"name": "Бренд", "value": "Apple"},
             {"name": "Страна-производитель", "value": "Китай"},
         ],
+        "min_price": 12999000,
+        "has_stock": True,
         "skus": [
             {
                 "id": "660e8400-e29b-41d4-a716-446655440001",
                 "name": "256GB Black",
                 "price": 12999000,
-                "quantity": 10,
+                "available_quantity": 10,
                 "characteristics": [
                     {"name": "Цвет", "value": "Чёрный"},
                     {"name": "Объём памяти", "value": "256 ГБ"},
@@ -192,7 +198,7 @@ def test_product_card_returns_full_data_with_skus(api_client, monkeypatch):
                 "id": "660e8400-e29b-41d4-a716-446655440002",
                 "name": "256GB White",
                 "price": 12999000,
-                "quantity": 3,
+                "available_quantity": 3,
                 "characteristics": [
                     {"name": "Цвет", "value": "Белый"},
                     {"name": "Объём памяти", "value": "256 ГБ"},
@@ -227,8 +233,10 @@ def test_cost_price_absent_in_response(api_client, monkeypatch):
     assert "reserved_quantity" not in sku
     assert "discount" not in sku
     assert "active_quantity" not in sku
+    assert "quantity" not in sku
     assert "in_stock" not in sku
     assert "image" not in sku
+    assert "title" not in response.json()
 
 
 def test_blocked_product_returns_404(api_client, monkeypatch):
@@ -266,7 +274,8 @@ def test_sku_without_stock_is_shown_as_unavailable(api_client, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json()["skus"][1]["quantity"] == 0
+    assert response.json()["skus"][1]["available_quantity"] == 0
+    assert response.json()["has_stock"] is True
     assert "in_stock" not in response.json()["skus"][1]
 
 
@@ -283,7 +292,7 @@ def test_empty_category_returns_empty_page(api_client, monkeypatch):
     )
 
     response = api_client.get(
-        "/api/v1/products",
+        "/api/v1/catalog/products",
         {"category_id": "123e4567-e89b-12d3-a456-426614174001"},
     )
 
