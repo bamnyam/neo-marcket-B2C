@@ -150,7 +150,7 @@ def test_product_card_returns_full_data_with_skus(api_client, monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
     response = api_client.get(
-        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+        "/api/v1/catalog/products/770e8400-e29b-41d4-a716-446655440002"
     )
 
     assert response.status_code == 200
@@ -217,6 +217,19 @@ def test_product_card_returns_full_data_with_skus(api_client, monkeypatch):
     )
 
 
+def test_legacy_product_card_url_is_not_registered(api_client, monkeypatch):
+    def fail_if_called(request, timeout):
+        raise AssertionError("B2B must not be called for legacy product card URL")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fail_if_called)
+
+    response = api_client.get(
+        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+    )
+
+    assert response.status_code == 404
+
+
 def test_cost_price_absent_in_response(api_client, monkeypatch):
     monkeypatch.setattr(
         urllib.request,
@@ -225,7 +238,7 @@ def test_cost_price_absent_in_response(api_client, monkeypatch):
     )
 
     response = api_client.get(
-        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+        "/api/v1/catalog/products/770e8400-e29b-41d4-a716-446655440002"
     )
 
     sku = response.json()["skus"][0]
@@ -252,7 +265,7 @@ def test_blocked_product_returns_404(api_client, monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
     response = api_client.get(
-        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+        "/api/v1/catalog/products/770e8400-e29b-41d4-a716-446655440002"
     )
 
     assert response.status_code == 404
@@ -270,7 +283,7 @@ def test_sku_without_stock_is_shown_as_unavailable(api_client, monkeypatch):
     )
 
     response = api_client.get(
-        "/api/v1/products/770e8400-e29b-41d4-a716-446655440002"
+        "/api/v1/catalog/products/770e8400-e29b-41d4-a716-446655440002"
     )
 
     assert response.status_code == 200
