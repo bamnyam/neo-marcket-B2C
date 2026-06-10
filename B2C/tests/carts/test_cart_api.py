@@ -69,7 +69,7 @@ def test_add_sku_increments_quantity_if_already_in_cart(api_client, monkeypatch)
         HTTP_X_SESSION_ID=str(session_id),
     )
 
-    assert first_response.status_code == 201
+    assert first_response.status_code == 200
     assert second_response.status_code == 200
     assert second_response.data["items"][0]["quantity"] == 3
     assert CartItem.objects.get(session_id=session_id, sku_id=sku_id).quantity == 3

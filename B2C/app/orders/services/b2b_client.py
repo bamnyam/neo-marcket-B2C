@@ -45,6 +45,7 @@ class B2BOrdersClient:
                     for item in items
                 ],
             },
+            reserve_failed_on_conflict=True,
         )
 
         if payload.get("reserved") is False:
@@ -52,7 +53,24 @@ class B2BOrdersClient:
 
         return payload
 
-    def _request_json(self, method, path, body=None):
+    def unreserve(self, order_id, items):
+        return self._request_json(
+            "POST",
+            "/api/v1/inventory/unreserve",
+            {
+                "order_id": str(order_id),
+                "items": [
+                    {
+                        "sku_id": str(item["sku_id"]),
+                        "quantity": item["quantity"],
+                    }
+                    for item in items
+                ],
+            },
+            reserve_failed_on_conflict=False,
+        )
+
+    def _request_json(self, method, path, body=None, reserve_failed_on_conflict=False):
         url = f"{settings.B2B_URL.rstrip('/')}{path}"
         data = json.dumps(body).encode() if body is not None else None
         request = urllib.request.Request(
@@ -71,7 +89,7 @@ class B2BOrdersClient:
         except urllib.error.HTTPError as exc:
             payload = _decode_json(exc.read())
 
-            if exc.code == 409:
+            if exc.code == 409 and reserve_failed_on_conflict:
                 raise ReserveFailedError(payload.get("failed_items", [])) from exc
 
             raise B2BUnavailableError("B2B service is unavailable") from exc

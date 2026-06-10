@@ -185,12 +185,9 @@ class CartItemsController(CartController):
         if validation_response is not None:
             return validation_response
 
-        _, created = self.service_class().add_item(identity, sku_id, quantity)
+        self.service_class().add_item(identity, sku_id, quantity)
 
-        return self._cart_response(
-            identity,
-            status.HTTP_201_CREATED if created else status.HTTP_200_OK,
-        )
+        return self._cart_response(identity)
 
 
 class CartItemController(CartController):
