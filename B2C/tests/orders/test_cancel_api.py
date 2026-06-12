@@ -165,7 +165,7 @@ def test_unreserve_failure_transitions_to_cancel_pending(
 
 
 @pytest.mark.django_db
-def test_cancel_assembling_order_transitions_to_cancelled(
+def test_cancel_assembling_order_returns_409(
     api_client,
     buyer,
     address,
@@ -188,18 +188,13 @@ def test_cancel_assembling_order_transitions_to_cancelled(
 
     response = api_client.post(f"/api/v1/orders/{order.uuid}/cancel")
 
-    assert response.status_code == 200
-    assert response.data["status"] == OrderStatus.CANCELLED
-    assert len(unreserve_calls) == 1
+    assert response.status_code == 409
+    assert response.data["code"] == "CANCEL_NOT_ALLOWED"
+    assert response.data["current_status"] == OrderStatus.ASSEMBLING
+    assert unreserve_calls == []
 
     order.refresh_from_db()
-    assert order.status == OrderStatus.CANCELLED
-    assert OrderStatusHistory.objects.filter(
-        order=order,
-        status_from=OrderStatus.ASSEMBLING,
-        status_to=OrderStatus.CANCELLED,
-        reason="cancel_unreserve_success",
-    ).exists()
+    assert order.status == OrderStatus.ASSEMBLING
 
 
 @pytest.mark.django_db
