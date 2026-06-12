@@ -201,6 +201,74 @@ def test_cancel_assembling_order_transitions_to_cancelled(
         reason="cancel_unreserve_success",
     ).exists()
 
+@pytest.mark.django_db
+def test_cancel_delivering_order_transitions_to_cancelled(
+    api_client,
+    buyer,
+    address,
+    payment_method,
+    monkeypatch,
+):
+    order = create_order(
+        buyer,
+        address,
+        payment_method,
+        status=OrderStatus.DELIVERING,
+    )
+    unreserve_calls = []
+    monkeypatch.setattr(
+        "app.orders.services.b2b_client.B2BOrdersClient.unreserve",
+        lambda self, order_id, items: unreserve_calls.append((order_id, items))
+        or {"unreserved": True},
+    )
+    api_client.force_authenticate(user=buyer)
+
+    response = api_client.post(f"/api/v1/orders/{order.uuid}/cancel")
+
+    assert response.status_code == 200
+    assert response.data["status"] == OrderStatus.CANCELLED
+    assert len(unreserve_calls) == 1
+
+    order.refresh_from_db()
+    assert order.status == OrderStatus.CANCELLED
+    assert OrderStatusHistory.objects.filter(
+        order=order,
+        status_from=OrderStatus.DELIVERING,
+        status_to=OrderStatus.CANCELLED,
+        reason="cancel_unreserve_success",
+    ).exists()
+
+@pytest.mark.django_db
+def test_cancel_delivered_order_returns_409(
+    api_client,
+    buyer,
+    address,
+    payment_method,
+    monkeypatch,
+):
+    order = create_order(
+        buyer,
+        address,
+        payment_method,
+        status=OrderStatus.DELIVERED,
+    )
+    unreserve_calls = []
+    monkeypatch.setattr(
+        "app.orders.services.b2b_client.B2BOrdersClient.unreserve",
+        lambda self, order_id, items: unreserve_calls.append((order_id, items))
+        or {"unreserved": True},
+    )
+    api_client.force_authenticate(user=buyer)
+
+    response = api_client.post(f"/api/v1/orders/{order.uuid}/cancel")
+
+    assert response.status_code == 409
+    assert response.data["code"] == "CANCEL_NOT_ALLOWED"
+    assert response.data["current_status"] == OrderStatus.DELIVERED
+    assert unreserve_calls == []
+
+    order.refresh_from_db()
+    assert order.status == OrderStatus.DELIVERED
 
 @pytest.mark.django_db
 def test_other_user_order_returns_404(

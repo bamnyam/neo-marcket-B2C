@@ -23,6 +23,7 @@ class CancelOrderService:
         OrderStatus.CREATED,
         OrderStatus.PAID,
         OrderStatus.ASSEMBLING,
+        OrderStatus.DELIVERING
     }
 
     def __init__(self, b2b_client=None):
